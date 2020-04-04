@@ -5,6 +5,10 @@ import React, {
   useReducer, 
   useCallback
 } from 'react';
+import SearchForm from './SearchForm';
+import List from './List';
+
+// styles
 import './App.css';
 
 // custom hook
@@ -17,7 +21,8 @@ const useSemiPersistentState = (key, initialState) => {
     if(!isMounted.current) {
       isMounted.current = true;
     } else {
-      // only run after the first mount
+      // only run after the first mount on re-renders
+      console.log('A')
       localStorage.setItem(key, value)
     }
     
@@ -57,15 +62,26 @@ const storiesReducer = (state, action) => {
   }
 }
 
+const getSumComments = stories => {
+  console.log('C');
+  return stories.data.reduce((result, value) => result + value.num_comments, 0);
+}
 
 
 const API_ENDPOINT = 'https://hn.algolia.com/api/v1/search?query=';
 
-function App() {
+const App = () => {
+  
+  
   const [stories, dispatchStories] = useReducer(
     storiesReducer,
     {data:[], isLoading: false, IsError: false}
   );
+
+
+  const sumComments = React.useMemo(() => {
+    return getSumComments(stories);
+  },[stories]);
 
   const [searchTerm, setSearchTerm] = useSemiPersistentState('search');
   const [url, setUrl] = useState(`${API_ENDPOINT}${searchTerm}`)
@@ -93,26 +109,29 @@ function App() {
     handleFetchStories();
   }, [handleFetchStories])
 
-  const handleRemoveStory = item => {
+  const handleRemoveStory = useCallback(item => {
     dispatchStories({
       type: 'REMOVE_STORY',
       payload: item
     })
-  }
+  },[]) 
 
-  function handleSearchInput(event) {
+  const handleSearchInput = (event) => {
     setSearchTerm(event.target.value)
   }
 
-  function handleSearchSubmit(e){
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
     setUrl(`${API_ENDPOINT}${searchTerm}`)
   }
 
+  
+
+  
 
   return (
     <div className="container">
-      <h1 className="headline-primary">Hacker Stories</h1>
+      <h1 className="headline-primary">My Hacker Stories with {sumComments}</h1>
 
       <SearchForm 
         searchTerm={searchTerm}
@@ -129,115 +148,15 @@ function App() {
       ) : (
         <List 
         list={stories.data} 
-        onRemoveItem={handleRemoveStory}/>
+        onRemoveItem={handleRemoveStory}
+        />
       )}
      
     </div>
   );
 }
 
-const SearchForm = ({
-  searchTerm,
-  onSearchInput,
-  onSearchSubmit
-}) =>(
-  <form
-    onSubmit={onSearchSubmit}
-    className="search-form"
-  >
-    <InputWithLabel 
-      id="search"
-      type="text"
-      value={searchTerm}
-      onInputChange={onSearchInput}
-    >
-      <strong>Search</strong>
-    </InputWithLabel>
 
-    <button
-      type="submit"
-      disabled={!searchTerm}
-      className="button__small"
-    >
-      Submit
-    </button>
-  </form>
-)
-
-
-// SEARCH
-const InputWithLabel = ({
-  id, 
-  value, 
-  type, 
-  onInputChange, 
-  children,
-  isFocused
-}) => {
-
-  const inputRef = useRef();
-
-  useEffect(() => {
-    if(isFocused && inputRef.current) {
-      inputRef.current.focus();
-    }
-  },[isFocused])
-
-  return (
-    <>
-      <label
-        className="label"
-        htmlFor={id}>{children} </label>
-      <input 
-        id={id} 
-        type={type}
-        value={value}
-        onChange={onInputChange}
-        autoFocus={isFocused}
-        ref={inputRef}
-        className="input"
-      />
-    </>
-  )
-}
-
-const List = (props) => {
-  const {onRemoveItem} = props;
-  return props.list.map((item) => (
-    <Item key={item.ObjectID} item={item} onRemoveItem={onRemoveItem}/>
-  ))
-}
-
-const Item = ({
-    item,
-    onRemoveItem
-}) => {
-
-  return ( 
-  <div
-    className="item"
-    key={item.ObjectID}>
-    <span style={{width: '40%'}}>
-      <a href={item.url}>
-        {item.title}
-      </a>
-    </span>
-    <span style={{width: '30%'}}>
-      {item.author}
-    </span>
-    <span style={{width: '10%'}}>{item.num_comments}</span>
-    <span style={{width: '10%'}}>{item.points}</span>
-    <span style={{width: '10%'}}>
-      <button 
-        className="button button__small" 
-        onClick={()=>onRemoveItem(item)}>
-          Dismiss
-        </button>
-    </span>
-   
-  </div>
-)
-}
  
 
 export default App;
